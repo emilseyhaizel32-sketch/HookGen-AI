@@ -163,10 +163,28 @@ export default function App() {
         </motion.div>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-8 flex items-center gap-3">
-            <Info className="w-5 h-5" />
-            <p className="text-sm font-medium">{error}</p>
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-500/10 border border-red-500/20 text-red-400 p-6 rounded-xl mb-8 flex flex-col sm:flex-row items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <Info className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-red-300">Generation Failed</p>
+                <p className="text-sm opacity-80">{error}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleGenerate}
+              className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-all text-sm font-bold flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Try Again
+            </button>
+          </motion.div>
         )}
 
         {/* Results Section */}
@@ -225,6 +243,15 @@ export default function App() {
                           "{hook.audio}"
                         </p>
                       </div>
+                    </div>
+
+                    {/* Hashtags */}
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {hook.hashtags.map((tag, i) => (
+                        <span key={i} className="text-[10px] font-mono font-bold text-neon-purple bg-neon-purple/10 px-2 py-0.5 rounded-full border border-neon-purple/20">
+                          #{tag.replace(/^#/, '')}
+                        </span>
+                      ))}
                     </div>
 
                     {/* Explanation */}

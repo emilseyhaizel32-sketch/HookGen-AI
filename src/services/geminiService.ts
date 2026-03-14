@@ -7,6 +7,7 @@ export interface Hook {
   visual: string;
   audio: string;
   explanation: string;
+  hashtags: string[];
 }
 
 export interface HookResponse {
@@ -23,6 +24,7 @@ export async function generateHooks(content: string): Promise<HookResponse> {
     1. A "visual" component: What should be happening on screen in the first 3 seconds.
     2. An "audio" component: What is being said or what sound effects are used.
     3. A brief "explanation" of why this hook works.
+    4. A list of 5 "hashtags" that are trending and relevant to this specific hook and content.
 
     Script/Transcript:
     ${content}
@@ -41,8 +43,12 @@ export async function generateHooks(content: string): Promise<HookResponse> {
                 visual: { type: Type.STRING },
                 audio: { type: Type.STRING },
                 explanation: { type: Type.STRING },
+                hashtags: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
               },
-              required: ["id", "visual", "audio", "explanation"],
+              required: ["id", "visual", "audio", "explanation", "hashtags"],
             },
           },
         },
@@ -53,10 +59,25 @@ export async function generateHooks(content: string): Promise<HookResponse> {
 
   try {
     const text = response.text;
-    if (!text) throw new Error("No response from AI");
+    if (!text) throw new Error("The AI returned an empty response. This can happen with very short or ambiguous scripts.");
     return JSON.parse(text) as HookResponse;
-  } catch (error) {
-    console.error("Failed to parse AI response:", error);
-    throw new Error("Failed to generate hooks. Please try again.");
+  } catch (error: any) {
+    console.error("AI Service Error:", error);
+    
+    // Handle specific API error cases if possible
+    if (error.message?.includes("API key")) {
+      throw new Error("Invalid API Key. Please check your environment configuration.");
+    }
+    if (error.message?.includes("quota") || error.message?.includes("429")) {
+      throw new Error("Rate limit exceeded. Please wait a moment before trying again.");
+    }
+    if (error.message?.includes("safety")) {
+      throw new Error("The content was flagged by safety filters. Please try a different script.");
+    }
+    if (error instanceof SyntaxError) {
+      throw new Error("Failed to parse the AI's response. The model might have generated invalid JSON. Please try again.");
+    }
+    
+    throw new Error(error.message || "Failed to generate hooks. Please check your connection and try again.");
   }
 }
