@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Zap, 
@@ -18,9 +18,49 @@ import {
   Info,
   ArrowRight,
   Youtube,
-  Smartphone
+  Smartphone,
+  CreditCard,
+  Star,
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import { generateHooks, Hook } from './services/geminiService';
+
+const PRICING_PLANS = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: '$0',
+    description: 'Perfect for getting started',
+    features: ['3 Generations / day', 'Basic Hooks', 'Standard Support'],
+    buttonText: 'Current Plan',
+    highlight: false
+  },
+  {
+    id: 'pro_monthly',
+    name: 'Pro Monthly',
+    price: '$19',
+    period: '/mo',
+    description: 'For serious content creators',
+    features: ['Unlimited Generations', 'Viral Hashtags', 'Priority AI Models', 'Priority Support'],
+    buttonText: 'Upgrade to Pro',
+    highlight: true,
+    amount: 19,
+    planCode: 'PLN_monthly_123' // Placeholder - user must replace with real Paystack Plan Code
+  },
+  {
+    id: 'pro_yearly',
+    name: 'Pro Yearly',
+    price: '$159',
+    period: '/yr',
+    description: 'Best value for professionals',
+    features: ['Everything in Pro', 'Save 30%', 'Early Access to Features'],
+    buttonText: 'Go Yearly',
+    highlight: false,
+    amount: 159,
+    planCode: 'PLN_yearly_456' // Placeholder - user must replace with real Paystack Plan Code
+  }
+];
 
 export default function App() {
   const [input, setInput] = useState('');
@@ -28,7 +68,18 @@ export default function App() {
   const [hooks, setHooks] = useState<Hook[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [showPricing, setShowPricing] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Check for success session ID in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('payment') === 'success') {
+      alert('Subscription successful! Welcome to Pro.');
+      window.history.replaceState({}, document.title, "/");
+    }
+  }, []);
 
   const handleGenerate = async () => {
     if (!input.trim()) return;
@@ -38,7 +89,6 @@ export default function App() {
     try {
       const result = await generateHooks(input);
       setHooks(result.hooks);
-      // Scroll to results
       setTimeout(() => {
         document.getElementById('results')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
@@ -46,6 +96,36 @@ export default function App() {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubscribe = async (plan: any) => {
+    if (!plan.planCode) return;
+    
+    setCheckoutLoading(plan.id);
+    try {
+      const response = await fetch('/api/paystack/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: 'emilseyhaizel32@gmail.com', // Using user's email
+          amount: plan.amount,
+          plan: plan.planCode 
+        }),
+      });
+
+      const data = await response.json();
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      } else {
+        throw new Error(data.error || 'Failed to initialize Paystack transaction');
+      }
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : 'Payment error';
+      alert(`Payment Error: ${errorMessage}`);
+      console.error('Detailed Payment Error:', err);
+    } finally {
+      setCheckoutLoading(null);
     }
   };
 
@@ -79,6 +159,14 @@ export default function App() {
             <span className="font-display font-bold text-xl tracking-tight">HookGen <span className="text-neon-purple">AI</span></span>
           </div>
           <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setShowPricing(true)}
+              className="text-sm font-bold text-zinc-400 hover:text-white transition-colors flex items-center gap-2"
+            >
+              <Star className="w-4 h-4 text-yellow-500" />
+              Pricing
+            </button>
+            <div className="h-4 w-px bg-white/10 hidden sm:block" />
             <div className="hidden sm:flex items-center gap-4 text-xs font-medium text-zinc-500 uppercase tracking-widest">
               <span className="flex items-center gap-1"><Youtube className="w-3 h-3" /> Shorts</span>
               <span className="flex items-center gap-1"><Smartphone className="w-3 h-3" /> TikTok</span>
@@ -306,6 +394,98 @@ export default function App() {
           </motion.div>
         )}
       </main>
+
+      {/* Pricing Modal */}
+      <AnimatePresence>
+        {showPricing && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPricing(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-5xl bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+            >
+              <div className="p-8 sm:p-12">
+                <div className="flex justify-between items-start mb-12">
+                  <div>
+                    <h2 className="text-3xl sm:text-4xl font-display font-bold mb-2">Choose your plan</h2>
+                    <p className="text-zinc-400">Unlock the full power of HookGen AI</p>
+                  </div>
+                  <button 
+                    onClick={() => setShowPricing(false)}
+                    className="p-2 hover:bg-white/5 rounded-full transition-colors"
+                  >
+                    <X className="w-6 h-6 text-zinc-500" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {PRICING_PLANS.map((plan) => (
+                    <div 
+                      key={plan.id}
+                      className={`relative p-8 rounded-2xl border transition-all ${
+                        plan.highlight 
+                          ? 'bg-zinc-800/50 border-neon-purple shadow-xl shadow-neon-purple/10' 
+                          : 'bg-zinc-950/50 border-white/5 hover:border-white/10'
+                      }`}
+                    >
+                      {plan.highlight && (
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-neon-purple text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+                          Most Popular
+                        </div>
+                      )}
+                      
+                      <div className="mb-8">
+                        <h3 className="text-xl font-display font-bold mb-1">{plan.name}</h3>
+                        <div className="flex items-baseline gap-1 mb-4">
+                          <span className="text-4xl font-display font-bold">{plan.price}</span>
+                          {plan.period && <span className="text-zinc-500 text-sm">{plan.period}</span>}
+                        </div>
+                        <p className="text-zinc-400 text-sm">{plan.description}</p>
+                      </div>
+
+                      <ul className="space-y-4 mb-8">
+                        {plan.features.map((feature, i) => (
+                          <li key={i} className="flex items-center gap-3 text-sm text-zinc-300">
+                            <ShieldCheck className={`w-4 h-4 ${plan.highlight ? 'text-neon-purple' : 'text-zinc-600'}`} />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+
+                      <button
+                        onClick={() => plan.planCode && handleSubscribe(plan)}
+                        disabled={!plan.planCode || !!checkoutLoading}
+                        className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                          plan.highlight
+                            ? 'bg-neon-purple text-white hover:bg-neon-purple/90'
+                            : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-50'
+                        }`}
+                      >
+                        {checkoutLoading === plan.id ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            {plan.planCode && <CreditCard className="w-4 h-4" />}
+                            {plan.buttonText}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Footer */}
       <footer className="border-t border-white/5 py-12 mt-20">
